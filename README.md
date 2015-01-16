@@ -6,6 +6,7 @@ development and automation practices.
 Geomys operates on a few key principles:
 - Everything configurable via REST. 
 - No reload necessary on config change - neighbors survive unless you screw up
+- Each daemon is stateless, and assumes no config until instructed otherwise on each startup
 
 # Daemons
 - geomysd: Watchdog service for starting daemons and crash handling. Provides
