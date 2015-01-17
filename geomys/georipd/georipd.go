@@ -46,12 +46,17 @@ func main() {
     obj.UpdateNbrRoutes(2, 2, 168558593, routes)
     /* -- JUST SOME EXAMPLE DATA -- */
 
+    GetRipDB := func() map[string]obj.RipMessage {
+        return obj.GetRoutesStr()
+    }
+
     // Kick off API server async
-    go ripapi.Start()
+    go ripapi.Start(GetRipDB)
     fmt.Println("REST API for RIPv2 is running....")
 
     // Press a key to exit
     var input string
     fmt.Scanln(&input)
     fmt.Println("done")
+
 }

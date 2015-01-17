@@ -13,7 +13,11 @@ import (
     "net/http"
 )
 
-func Start() {
+var GetRipDB func() map[string]obj.RipMessage
+
+func Start(f func() map[string]obj.RipMessage) {
+    GetRipDB = f
+
     http.HandleFunc("/", serveRest)
     http.ListenAndServe("localhost:8080", nil)
 }
@@ -28,5 +32,5 @@ func serveRest(w http.ResponseWriter, r *http.Request) {
 }
 
 func createJsonResponse() ([]byte, error) {
-    return json.MarshalIndent(obj.GetRoutesStr(), "", "  ")
+    return json.MarshalIndent(GetRipDB(), "", "  ")
 }
