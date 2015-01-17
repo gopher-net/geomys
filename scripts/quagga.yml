@@ -1,0 +1,35 @@
+---
+- name: Configure Quagga
+  hosts: all
+  sudo: yes
+  gather_facts: yes
+  tasks:
+    - name: Deploy Quagga for Debian Systems
+      apt: pkg=quagga state=latest
+      when: ansible_os_family == 'Debian'
+
+    - name: Enable routing
+      raw: "{{ item }}"
+      with_items:
+        - sed -i.bak 's/#net.ipv4.ip_forward=1/net.ipv4.ip_forward=1/' /etc/sysctl.conf
+        - sed -i.bak 's/#net.ipv6.conf.all.forwarding=1/net.ipv6.conf.all.forwarding=1/' /etc/sysctl.conf
+        - sysctl -p /etc/sysctl.conf
+
+
+  # - name: Create config files
+  #   template: src={{ item.name }}.j2 dest=/etc/quagga/{{ item.name }}
+  #   with_items: conffiles
+
+  # - name: Set permissions for config files
+  #   file: path=/etc/quagga/{{ item.name }} owner={{ item.owner }} group={{ item.group }} mode={{ item.mode }}
+  #   with_items: conffiles
+
+  # - name: Enable desired routing protocols
+  #   template: src=daemons.j2 dest=/etc/quagga/daemons
+
+  # - name: Enable telnet access and the retaining of routes over restarts
+  #   template: src=debian.conf.j2 dest=/etc/quagga/debian.conf
+  #   when: ansible_os_family == 'Debian'
+
+  #   notify:
+  #   - Restart Quagga
