@@ -1,0 +1,36 @@
+#!/usr/bin/env python
+"""
+Convert decimal to IP address
+"""
+
+def dec2ip(dec):
+    """
+    Convert dec to dotted dec.
+    """
+    binip = list(bin(dec))
+    del binip[:2]
+
+    while len(binip) < 32:
+        binip.insert(0, 0)
+
+    octet_one = "".join(str(x) for x in binip[:8])
+    octet_two = "".join(str(x) for x in binip[8:16])
+    octet_three = "".join(str(x) for x in binip[16:24])
+    octet_four = "".join(str(x) for x in binip[24:32])
+
+    print "%i.%i.%i.%i" %(int(octet_one, 2),
+                          int(octet_two, 2),
+                          int(octet_three, 2),
+                          int(octet_four, 2))
+
+
+if __name__ == "__main__":
+    print "Press CTL-C to exit\n"
+    while True:
+        try:
+            DEC = int(raw_input("Decimal IP: "))
+            dec2ip(DEC)
+        except KeyboardInterrupt:
+            break
+        except ValueError:
+            print "Invalid input"
