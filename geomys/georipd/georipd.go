@@ -8,53 +8,74 @@ package main
 
 import (
     "./api"
-    "./obj"
+    "./ripdb"
     "fmt"
+    "time"
 )
 
 func main() {
 
+    routelist := make(chan []ripdb.RipRoute)
+    go ripdb.StartDb(routelist) //I saw some examples passing a pointer to this channel instead of the channel itself. Thoughts?
+
+    // Need to have a loop here that goes through multiple channels and sees if something needs to be sent.
+    // Will have to use buffered channels for this
+
     /* -- JUST SOME EXAMPLE DATA -- */
-    var routes []obj.RipRoute
-    r1 := obj.RipRoute{
+    // Note that I'm leaving out the timestamp. This should be the same at the serialization layer.
+    var routes []ripdb.RipRoute
+    routes = append(routes, ripdb.RipRoute{
         AddrFamily: 2,
+        Sender:     10486276,
         RouteTag:   0,
-        IpAddr:     0,
-        Netmask:    0,
-        NextHop:    0,
-        Metric:     1,
-    }
-    routes = append(routes, r1)
-    r2 := obj.RipRoute{
-        AddrFamily: 2,
-        RouteTag:   0,
-        IpAddr:     10486272,
+        IpAddr:     10480001,
         Netmask:    4294967040,
         NextHop:    0,
         Metric:     1,
-    }
-    routes = append(routes, r2)
-    r3 := obj.RipRoute{
+    })
+    routes = append(routes, ripdb.RipRoute{
         AddrFamily: 2,
+        Sender:     10486276,
         RouteTag:   0,
-        IpAddr:     167772672,
+        IpAddr:     10480002,
+        Netmask:    4294967040,
+        NextHop:    0,
+        Metric:     1,
+    })
+    routes = append(routes, ripdb.RipRoute{
+        AddrFamily: 2,
+        Sender:     10486276,
+        RouteTag:   0,
+        IpAddr:     10480003,
         Netmask:    4294967040,
         NextHop:    0,
         Metric:     16,
-    }
-    routes = append(routes, r3)
-    obj.UpdateNbrRoutes(2, 2, 168558593, routes)
+    })
     /* -- JUST SOME EXAMPLE DATA -- */
 
-    GetRipDB := func() map[string]obj.RipMessage {
-        return obj.GetRoutesStr()
-    }
+    routelist <- routes
+    <-routelist
 
     // Kick off API server async
-    go ripapi.Start(GetRipDB)
+    go ripapi.Start(routelist) // TODO: Does this create a copy of the channel, or a pointer?
     fmt.Println("REST API for RIPv2 is running....")
 
-    // Press a key to exit
+    time.Sleep(10 * time.Second)
+    var routestwo []ripdb.RipRoute
+    routestwo = append(routestwo, ripdb.RipRoute{
+        AddrFamily: 2,
+        Sender:     10486276,
+        RouteTag:   0,
+        IpAddr:     10480003,
+        Netmask:    4294967040,
+        NextHop:    0,
+        Metric:     16,
+    })
+
+    routelist <- routestwo
+    <-routelist
+
+    // // Press a key to exit
     var input string
     fmt.Scanln(&input)
     fmt.Println("done")

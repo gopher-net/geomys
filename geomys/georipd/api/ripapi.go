@@ -7,16 +7,16 @@
 package ripapi
 
 import (
-    "../obj"
+    "../ripdb"
     "encoding/json"
     "fmt"
     "net/http"
 )
 
-var GetRipDB func() map[string]obj.RipMessage
+var ripchan chan []ripdb.RipRoute
 
-func Start(f func() map[string]obj.RipMessage) {
-    GetRipDB = f
+func Start(c chan []ripdb.RipRoute) {
+    ripchan = c
 
     http.HandleFunc("/", serveRest)
     http.ListenAndServe("localhost:8080", nil)
@@ -32,5 +32,8 @@ func serveRest(w http.ResponseWriter, r *http.Request) {
 }
 
 func createJsonResponse() ([]byte, error) {
-    return json.MarshalIndent(GetRipDB(), "", "  ")
+    var tempslice []ripdb.RipRoute
+    ripchan <- tempslice
+    retdb := <-ripchan
+    return json.MarshalIndent(retdb, "", "  ")
 }
