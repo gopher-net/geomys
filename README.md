@@ -18,5 +18,5 @@ Geomys operates on a few key principles:
 
 # Utilities
 - geo-config: Utility for configuring Geomys.
-- geo-state: A utility for showing the running state of the daemon (neighbor tables, etc)
+- geo-show: A utility for showing the running state within various daemons (neighbor tables, advertised prefixes, etc)
 - geo-debug: A utility for displaying debug information about running threads
