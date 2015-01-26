@@ -8,8 +8,9 @@ IFS=$'\n\t'
 sudo apt-get -y install git gccgo-go tmux
 
 # Kill all running geomys daemons
-kill $(ps aux | grep '[g]eo' | awk '{print $2}')
+kill $(ps aux | grep '[g]eo' | awk '{print $2}') || true
 # http://stackoverflow.com/questions/3510673/find-and-kill-a-process-in-one-line-using-bash-and-regex
+# http://stackoverflow.com/questions/1075083/execute-a-shell-command-from-a-shell-script-without-stopping-if-error-occurs
 
 # Remove existing geomys directory in case of a re-provision
 rm -rf /home/vagrant/geomys
@@ -22,8 +23,8 @@ export GOPATH=/home/vagrant/Code/GO
 export GOBIN=$GOPATH/bin
 PATH=$PATH:$GOPATH/bin
 
-grep -q -F 'GOPATH' /home/vagrant/.bashrc ||  sudo bash -c "echo -e 'export GOPATH=/home/vagrant/Code/GO\nexport GOBIN=$GOPATH/bin' >> /home/vagrant/.bashrc"
-grep -q -F 'GOPATH' /root/.bashrc ||  sudo bash -c "echo -e 'export GOPATH=/home/vagrant/Code/GO\nexport GOBIN=$GOPATH/bin' >> /root/.bashrc"
+grep -q -F 'GOPATH' /home/vagrant/.bashrc ||  sudo bash -c "echo -e 'export GOPATH=/home/vagrant/Code/GO\nexport GOBIN=$GOPATH/bin\nPATH=$PATH:$GOPATH/bin' >> /home/vagrant/.bashrc"
+grep -q -F 'GOPATH' /root/.bashrc ||  sudo bash -c "echo -e 'export GOPATH=/home/vagrant/Code/GO\nexport GOBIN=$GOPATH/bin\nPATH=$PATH:$GOPATH/bin' >> /root/.bashrc"
 
 # Install GO dependencies
 go get github.com/vishvananda/netlink
