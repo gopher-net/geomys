@@ -23,10 +23,10 @@ func main() {
 
 	// Kick off API server async
 	go ripapi.Start(routelist) // TODO: Does this create a copy of the channel, or a pointer?
-	fmt.Println("REST API for RIPv2 is running....")
 
 	go serial.Start(routelist)
 
+	fmt.Println("RIP Daemon started. Press any key to exit...")
 	// Press a key to exit
 	var input string
 	fmt.Scanln(&input)

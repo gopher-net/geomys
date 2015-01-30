@@ -8,7 +8,6 @@ import (
 	"../ripdb"
 	"bytes"
 	"encoding/binary"
-	"fmt"
 	"net"
 	"time"
 )
@@ -25,6 +24,7 @@ func Start(routelist chan []ripdb.RipRoute) {
 	}
 	//Create listener instance
 	go listen(conn, routelist)
+	go SendTypeOne(conn)
 	go func() {
 		for {
 			time.Sleep(30 * time.Second)
@@ -34,7 +34,41 @@ func Start(routelist chan []ripdb.RipRoute) {
 }
 
 func SendTypeOne(conn *net.UDPConn) {
-	//TODO
+	packet := new(bytes.Buffer)
+
+	// Write command into new packet
+	err := binary.Write(packet, binary.BigEndian, byte(1))
+	if err != nil {
+		panic(err)
+	}
+
+	// Write version to new packet
+	err = binary.Write(packet, binary.BigEndian, byte(2))
+	if err != nil {
+		panic(err)
+	}
+
+	var pad16 [2]byte
+	pad16[0] = 0
+	pad16[1] = 0
+	for i := 0; i < 10; i++ {
+		err = binary.Write(packet, binary.BigEndian, pad16)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	err = binary.Write(packet, binary.BigEndian, byte(0))
+	if err != nil {
+		panic(err)
+	}
+
+	err = binary.Write(packet, binary.BigEndian, byte(16))
+	if err != nil {
+		panic(err)
+	}
+	ripaddr, err := net.ResolveUDPAddr("udp", "224.0.0.9:520")
+	conn.WriteToUDP(packet.Bytes(), ripaddr)
 }
 
 func SendRoutes(routelist chan []ripdb.RipRoute, conn *net.UDPConn) {
@@ -42,13 +76,14 @@ func SendRoutes(routelist chan []ripdb.RipRoute, conn *net.UDPConn) {
 	routelist <- routes
 	routes = <-routelist
 	packet := new(bytes.Buffer)
-	// Write version into new packet
+
+	// Write command into new packet
 	err := binary.Write(packet, binary.BigEndian, byte(2))
 	if err != nil {
 		panic(err)
 	}
 
-	// Write message type to new packet
+	// Write version to new packet
 	err = binary.Write(packet, binary.BigEndian, byte(2))
 	if err != nil {
 		panic(err)
@@ -86,52 +121,55 @@ func SendRoutes(routelist chan []ripdb.RipRoute, conn *net.UDPConn) {
 			panic(err)
 		}
 	}
-	fmt.Print("Packet: %v", packet.Bytes())
 	ripaddr, err := net.ResolveUDPAddr("udp", "224.0.0.9:520")
 	conn.WriteToUDP(packet.Bytes(), ripaddr)
 }
 
+func parse_message(b []byte, leng int, routelist chan []ripdb.RipRoute,
+	sender *net.UDPAddr, conn *net.UDPConn) {
+	command := b[0]
+	//version := b[1] //Leaving version here for future reference
+
+	//Handle incoming routes
+	if command == 2 {
+		var routes []ripdb.RipRoute
+		for i := 4; i <= leng-4; i += 20 {
+			//Read bytes into protocol vars
+			addr_family := b[i : i+2]
+			prefix := b[i+4 : i+8]
+			subnet := b[i+8 : i+12]
+			nexthop := b[i+12 : i+16]
+			metric := b[i+16 : i+20]
+
+			//Set up route object and append to route slice
+			routes = append(routes, ripdb.RipRoute{
+				AddrFamily: binary.BigEndian.Uint16(addr_family),
+				Sender:     binary.BigEndian.Uint32(sender.IP),
+				RouteTag:   0,
+				IpAddr:     binary.BigEndian.Uint32(prefix),
+				Netmask:    binary.BigEndian.Uint32(subnet),
+				NextHop:    binary.BigEndian.Uint32(nexthop),
+				Metric:     binary.BigEndian.Uint32(metric),
+			})
+		}
+
+		//Send recieved routes to handler and dump return
+		routelist <- routes
+		<-routelist
+	} else {
+		//TODO: Handle incoming type 1 packet and recieve current DB state
+		SendRoutes(routelist, conn)
+	}
+}
+
 func listen(conn *net.UDPConn, routelist chan []ripdb.RipRoute) {
 	//Read from wire forever for RIP Packets
-	fmt.Println("Attached to RIP....")
 	for {
 		b := make([]byte, 504)
 		leng, sender, err := conn.ReadFromUDP(b)
 		if err != nil {
 			panic(err)
 		}
-		command := b[0]
-		//version := b[1] //Leaving version here for future reference
-
-		//Handle incoming routes
-		if command == 2 {
-			var routes []ripdb.RipRoute
-			for i := 4; i <= leng-4; i += 20 {
-				//Read bytes into protocol vars
-				addr_family := b[i : i+2]
-				prefix := b[i+4 : i+8]
-				subnet := b[i+8 : i+12]
-				nexthop := b[i+12 : i+16]
-				metric := b[i+16 : i+20]
-
-				//Set up route object and append to route slice
-				routes = append(routes, ripdb.RipRoute{
-					AddrFamily: binary.BigEndian.Uint16(addr_family),
-					Sender:     binary.BigEndian.Uint32(sender.IP),
-					RouteTag:   0,
-					IpAddr:     binary.BigEndian.Uint32(prefix),
-					Netmask:    binary.BigEndian.Uint32(subnet),
-					NextHop:    binary.BigEndian.Uint32(nexthop),
-					Metric:     binary.BigEndian.Uint32(metric),
-				})
-			}
-
-			//Send recieved routes to handler and dump return
-			routelist <- routes
-			<-routelist
-		} else {
-			//TODO: Handle incoming type 1 packet and recieve current DB state
-			SendRoutes(routelist, conn)
-		}
+		parse_message(b, leng, routelist, sender, conn)
 	}
 }
