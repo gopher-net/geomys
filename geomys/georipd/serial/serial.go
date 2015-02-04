@@ -12,18 +12,30 @@ import (
 	"time"
 )
 
+type serial struct {
+	conn *net.UDPConn
+	ints []net.Interface
+}
+
+type ripconn struct {
+	conn  net.UDPConn
+	inter net.Interface
+}
+
 func Start(routelist chan []ripdb.RipRoute) {
 	//Attach to RIP multicast stream
+	var rconn ripconn
 	ripaddr, err := net.ResolveUDPAddr("udp", "224.0.0.9:520")
 	if err != nil {
 		panic(err)
 	}
 	conn, err := net.ListenMulticastUDP("udp", nil, ripaddr)
+	rconn.conn = *conn
 	if err != nil {
 		panic(err)
 	}
 	//Create listener instance
-	go listen(conn, routelist)
+	go listen(&rconn, routelist)
 	go SendTypeOne(conn)
 	go func() {
 		for {
@@ -126,7 +138,7 @@ func SendRoutes(routelist chan []ripdb.RipRoute, conn *net.UDPConn) {
 }
 
 func parse_message(b []byte, leng int, routelist chan []ripdb.RipRoute,
-	sender *net.UDPAddr, conn *net.UDPConn) {
+	sender *net.UDPAddr, tripconn *ripconn) {
 	command := b[0]
 	//version := b[1] //Leaving version here for future reference
 
@@ -150,6 +162,7 @@ func parse_message(b []byte, leng int, routelist chan []ripdb.RipRoute,
 				Netmask:    binary.BigEndian.Uint32(subnet),
 				NextHop:    binary.BigEndian.Uint32(nexthop),
 				Metric:     binary.BigEndian.Uint32(metric),
+				InInt:      tripconn.inter,
 			})
 		}
 
@@ -158,15 +171,15 @@ func parse_message(b []byte, leng int, routelist chan []ripdb.RipRoute,
 		<-routelist
 	} else {
 		//TODO: Handle incoming type 1 packet and recieve current DB state
-		SendRoutes(routelist, conn)
+		SendRoutes(routelist, &tripconn.conn)
 	}
 }
 
-func listen(conn *net.UDPConn, routelist chan []ripdb.RipRoute) {
+func listen(conn *ripconn, routelist chan []ripdb.RipRoute) {
 	//Read from wire forever for RIP Packets
 	for {
 		b := make([]byte, 504)
-		leng, sender, err := conn.ReadFromUDP(b)
+		leng, sender, err := conn.conn.ReadFromUDP(b)
 		if err != nil {
 			panic(err)
 		}
